@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: felicity-connect-backend
+    env: node
+    rootDir: backend
+    plan: free
+    autoDeploy: true
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 5000
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: IIIT_EMAIL_DOMAIN
+        value: iiit.ac.in
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: DEFAULT_ORGANIZER_PASSWORD
+        value: club12345
+      - key: BASE_PUBLIC_URL
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: PARTICIPANT_RESET_TOKEN_TTL_MINUTES
+        value: 30
