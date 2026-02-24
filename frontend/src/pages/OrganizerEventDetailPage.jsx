@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { apiRequest, getApiBase } from '../api';
+import { apiRequest, downloadFile, getApiBase } from '../api';
 
 export default function OrganizerEventDetailPage() {
   const { eventId } = useParams();
@@ -95,6 +95,44 @@ export default function OrganizerEventDetailPage() {
       setOrders(response.orders || []);
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  function pick_download_name(content_disposition, fallback) {
+    const source = String(content_disposition || '');
+    const utf8_match = source.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utf8_match?.[1]) {
+      return decodeURIComponent(utf8_match[1]).trim();
+    }
+
+    const plain_match = source.match(/filename=\"?([^\";]+)\"?/i);
+    if (plain_match?.[1]) {
+      return plain_match[1].trim();
+    }
+
+    return fallback || 'payment-proof.png';
+  }
+
+  async function downloadProof(order) {
+    try {
+      setError('');
+      const response = await downloadFile(`/orders/${order._id}/payment-proof`);
+      const blob = await response.blob();
+      const file_name = pick_download_name(
+        response.headers.get('content-disposition'),
+        order.paymentProofOriginalName || `payment-proof-${order._id}.png`
+      );
+
+      const object_url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = object_url;
+      link.download = file_name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(object_url);
+    } catch (err) {
+      setError(err.message || 'Failed to download payment proof');
     }
   }
 
@@ -294,13 +332,9 @@ export default function OrganizerEventDetailPage() {
                       <td>{order.status}</td>
                       <td>
                         {order.paymentProofUrl ? (
-                          <a
-                            href={`${getApiBase().replace('/api', '')}/${order.paymentProofUrl}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            View Proof
-                          </a>
+                          <button type="button" className="chip" onClick={() => downloadProof(order)}>
+                            Download Proof
+                          </button>
                         ) : (
                           'No proof'
                         )}

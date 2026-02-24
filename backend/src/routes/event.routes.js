@@ -26,9 +26,47 @@ const registrationFileUploadDir = path.resolve(__dirname, '../uploads/registrati
 fs.mkdirSync(paymentProofUploadDir, { recursive: true });
 fs.mkdirSync(registrationFileUploadDir, { recursive: true });
 
+function safe_extension_from_name(file_name) {
+  const ext = path.extname(String(file_name || '')).toLowerCase();
+  if (!ext) return '';
+  return /^\.[a-z0-9]{1,10}$/.test(ext) ? ext : '';
+}
+
+function extension_from_mime(mime_type) {
+  if (mime_type === 'image/png') return '.png';
+  if (mime_type === 'image/jpeg') return '.jpg';
+  if (mime_type === 'image/webp') return '.webp';
+  if (mime_type === 'image/gif') return '.gif';
+  return '';
+}
+
+function normalize_download_name(file_name, fallback) {
+  const source = String(file_name || '').trim() || String(fallback || '').trim() || 'payment-proof';
+  const safe = source.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+  const with_default = safe || 'payment-proof';
+  const ext = safe_extension_from_name(with_default);
+  return ext ? with_default : `${with_default}.png`;
+}
+
+const paymentProofStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, paymentProofUploadDir),
+  filename: (_req, file, cb) => {
+    const ext = safe_extension_from_name(file.originalname) || extension_from_mime(file.mimetype);
+    const suffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `proof-${suffix}${ext}`);
+  }
+});
+
 const paymentProofUpload = multer({
-  dest: paymentProofUploadDir,
-  limits: { fileSize: 5 * 1024 * 1024 }
+  storage: paymentProofStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (String(file.mimetype || '').startsWith('image/')) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error('Payment proof must be an image'));
+  }
 });
 
 const registrationFileUpload = multer({
@@ -140,6 +178,16 @@ function remove_uploaded_registration_files(files) {
       // Intentionally no-op: cleanup best effort only.
     });
   }
+}
+
+function remove_payment_proof_file(rel_path) {
+  if (!rel_path) return;
+  const absolute = path.resolve(__dirname, '..', rel_path);
+  if (!absolute.startsWith(paymentProofUploadDir)) return;
+
+  fs.unlink(absolute, () => {
+    // Intentionally no-op: cleanup best effort only.
+  });
 }
 
 function parse_registration_payload(body) {
@@ -688,8 +736,12 @@ router.post(
         return res.status(400).json({ message: 'Payment proof cannot be uploaded in this state' });
       }
 
+      remove_payment_proof_file(order.paymentProofUrl);
+
       const relPath = `uploads/payment-proofs/${req.file.filename}`;
       order.paymentProofUrl = relPath;
+      order.paymentProofOriginalName = req.file.originalname || '';
+      order.paymentProofMimeType = req.file.mimetype || '';
       order.status = 'PENDING_APPROVAL';
       order.reviewComment = '';
       order.reviewedBy = null;
@@ -702,6 +754,42 @@ router.post(
     }
   }
 );
+
+router.get('/orders/:orderId/payment-proof', requireAuth, async (req, res, next) => {
+  try {
+    const order = await MerchandiseOrder.findById(req.params.orderId).populate('event', 'organizer');
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const user_id = req.user._id.toString();
+    const is_owner = order.participant.toString() === user_id;
+    const is_admin = req.user.role === 'admin';
+    const is_event_organizer = req.user.role === 'organizer' && order.event?.organizer?.toString() === user_id;
+
+    if (!is_owner && !is_admin && !is_event_organizer) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    if (!order.paymentProofUrl) {
+      return res.status(404).json({ message: 'Payment proof not found' });
+    }
+
+    const absolute = path.resolve(__dirname, '..', order.paymentProofUrl);
+    if (!absolute.startsWith(paymentProofUploadDir)) {
+      return res.status(400).json({ message: 'Invalid payment proof path' });
+    }
+
+    if (!fs.existsSync(absolute)) {
+      return res.status(404).json({ message: 'Payment proof file is missing' });
+    }
+
+    const suggested_name = normalize_download_name(order.paymentProofOriginalName, path.basename(absolute));
+    return res.download(absolute, suggested_name);
+  } catch (err) {
+    return next(err);
+  }
+});
 
 router.get('/orders/me', requireAuth, allowRoles('participant'), async (req, res, next) => {
   try {

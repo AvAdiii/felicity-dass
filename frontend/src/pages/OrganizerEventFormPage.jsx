@@ -15,14 +15,15 @@ function blankField(order = 0) {
 
 function blankItem() {
   return {
+    rowId: `item_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
     sku: '',
     name: '',
     size: '',
     color: '',
     variant: '',
-    price: 0,
-    stock: 0,
-    purchaseLimit: 1
+    price: '',
+    stock: '',
+    purchaseLimit: '1'
   };
 }
 
@@ -85,6 +86,19 @@ export default function OrganizerEventFormPage({ mode }) {
         const response = await apiRequest(`/organizers/me/events/${eventId}`);
         if (ignore) return;
         const event = response.event;
+        const normalized_items = event.merchandise?.items?.length
+          ? event.merchandise.items.map((item) => ({
+              rowId: `item_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+              sku: item.sku || '',
+              name: item.name || '',
+              size: item.size || '',
+              color: item.color || '',
+              variant: item.variant || '',
+              price: String(item.price ?? ''),
+              stock: String(item.stock ?? ''),
+              purchaseLimit: String(item.purchaseLimit ?? 1)
+            }))
+          : [blankItem()];
         setForm({
           name: event.name || '',
           description: event.description || '',
@@ -104,7 +118,7 @@ export default function OrganizerEventFormPage({ mode }) {
             optionsText: (field.options || []).join(','),
             order: field.order ?? idx
           })),
-          merchandiseItems: event.merchandise?.items?.length ? event.merchandise.items : [blankItem()],
+          merchandiseItems: normalized_items,
           formLocked: event.formLocked
         });
       } catch (err) {
@@ -207,7 +221,18 @@ export default function OrganizerEventFormPage({ mode }) {
       return { status: nextStatus };
     }
 
-    const payload_merchandise_items = form.type === 'MERCHANDISE' ? form.merchandiseItems : [];
+    const payload_merchandise_items = form.type === 'MERCHANDISE'
+      ? form.merchandiseItems.map((item) => ({
+          sku: String(item.sku || '').trim(),
+          name: String(item.name || '').trim(),
+          size: String(item.size || '').trim(),
+          color: String(item.color || '').trim(),
+          variant: String(item.variant || '').trim(),
+          price: Number(item.price || 0),
+          stock: Number(item.stock || 0),
+          purchaseLimit: Number(item.purchaseLimit || 1)
+        }))
+      : [];
 
     return {
       name: form.name,
@@ -491,7 +516,7 @@ export default function OrganizerEventFormPage({ mode }) {
         <section className="card">
           <h3>Merchandise Items</h3>
           {form.merchandiseItems.map((item, index) => (
-            <div key={`${item.sku}-${index}`} className="grid-form bordered">
+            <div key={item.rowId || `item-${index}`} className="grid-form bordered">
               <label>
                 SKU
                 <input value={item.sku} onChange={(e) => updateItem(index, 'sku', e.target.value)} disabled={!canEditEverything} />
@@ -518,7 +543,7 @@ export default function OrganizerEventFormPage({ mode }) {
                   type="number"
                   min={0}
                   value={item.price}
-                  onChange={(e) => updateItem(index, 'price', Number(e.target.value))}
+                  onChange={(e) => updateItem(index, 'price', e.target.value)}
                   disabled={!canEditEverything}
                 />
               </label>
@@ -528,7 +553,7 @@ export default function OrganizerEventFormPage({ mode }) {
                   type="number"
                   min={0}
                   value={item.stock}
-                  onChange={(e) => updateItem(index, 'stock', Number(e.target.value))}
+                  onChange={(e) => updateItem(index, 'stock', e.target.value)}
                   disabled={!canEditEverything}
                 />
               </label>
@@ -538,7 +563,7 @@ export default function OrganizerEventFormPage({ mode }) {
                   type="number"
                   min={1}
                   value={item.purchaseLimit}
-                  onChange={(e) => updateItem(index, 'purchaseLimit', Number(e.target.value))}
+                  onChange={(e) => updateItem(index, 'purchaseLimit', e.target.value)}
                   disabled={!canEditEverything}
                 />
               </label>

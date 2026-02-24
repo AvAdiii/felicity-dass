@@ -13,6 +13,8 @@ const merchandise_order_schema = new mongoose.Schema(
       default: 'CREATED'
     },
     paymentProofUrl: { type: String },
+    paymentProofOriginalName: { type: String, trim: true },
+    paymentProofMimeType: { type: String, trim: true },
     reviewComment: { type: String, trim: true },
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     reviewedAt: { type: Date },
