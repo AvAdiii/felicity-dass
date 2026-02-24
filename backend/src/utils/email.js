@@ -102,6 +102,9 @@ export async function verifyEmailTransport() {
 export async function sendEmail({ to, subject, text, html }) {
   const tx = getTransporter();
   if (!tx) {
+    if (!should_fallback_to_dev_log()) {
+      throw new Error('SMTP is not configured');
+    }
     print_dev_mail({ to, subject, text });
     return { ok: false, reason: 'smtp_not_configured' };
   }
