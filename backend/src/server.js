@@ -106,7 +106,7 @@ const mongo_uri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/felicity';
     }
 
     server.listen(port, () => {
-      console.log(`Backend listening on http://localhost:${port}`);
+      console.log(`Backend listening on port ${port}`);
     });
   } catch (err) {
     console.error('Failed to start server', err);
