@@ -35,11 +35,21 @@ services:
         sync: false
       - key: SMTP_PORT
         sync: false
+      - key: SMTP_SERVICE
+        sync: false
+      - key: SMTP_SECURE
+        sync: false
+      - key: SMTP_REQUIRE_TLS
+        sync: false
+      - key: SMTP_TLS_REJECT_UNAUTHORIZED
+        value: "true"
       - key: SMTP_USER
         sync: false
       - key: SMTP_PASS
         sync: false
       - key: SMTP_FROM
         sync: false
+      - key: EMAIL_DEV_FALLBACK
+        value: "false"
       - key: PARTICIPANT_RESET_TOKEN_TTL_MINUTES
         value: 30

@@ -1,2 +1,2 @@
-Frontend URL:
-Backend URL:
+Frontend URL: https://felicity-dass-xi.vercel.app
+Backend URL: https://felicity-connect-backend.onrender.com
