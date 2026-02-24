@@ -11,6 +11,38 @@ const router = Router();
 
 router.use(requireAuth, allowRoles('organizer'));
 
+function parse_qr_payload(raw_payload) {
+  if (raw_payload && typeof raw_payload === 'object' && !Array.isArray(raw_payload)) {
+    return raw_payload;
+  }
+
+  let candidate = String(raw_payload || '').trim();
+  if (!candidate) return null;
+
+  // Handle both JSON and double-encoded JSON copied from logs/debug output.
+  for (let i = 0; i < 3; i += 1) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed;
+      }
+      if (typeof parsed === 'string') {
+        candidate = parsed.trim();
+        continue;
+      }
+      return null;
+    } catch (err) {
+      break;
+    }
+  }
+
+  if (/^FEL-[A-Z0-9]+$/i.test(candidate)) {
+    return { t: candidate.toUpperCase() };
+  }
+
+  return null;
+}
+
 router.post('/scan', async (req, res, next) => {
   try {
     const { eventId, qrPayload } = req.body;
@@ -23,10 +55,8 @@ router.post('/scan', async (req, res, next) => {
       return res.status(404).json({ message: 'Event not found for organizer' });
     }
 
-    let parsed;
-    try {
-      parsed = JSON.parse(qrPayload);
-    } catch (err) {
+    const parsed = parse_qr_payload(qrPayload);
+    if (!parsed) {
       await AttendanceLog.create({
         event: event._id,
         scannedBy: req.user._id,
@@ -49,16 +79,46 @@ router.post('/scan', async (req, res, next) => {
       return res.status(400).json({ message: 'Ticket id missing in QR payload' });
     }
 
-    const ticket = await Ticket.findOne({ ticketId, event: event._id }).populate('participant', 'firstName lastName email');
+    const payload_event_id = String(parsed?.e || '').trim();
+    if (payload_event_id && payload_event_id !== String(event._id)) {
+      await AttendanceLog.create({
+        event: event._id,
+        scannedBy: req.user._id,
+        status: 'INVALID',
+        payload: String(qrPayload),
+        note: `Payload event mismatch: expected ${event._id} got ${payload_event_id}`
+      });
+
+      return res.status(400).json({
+        message: `This QR belongs to another event (event id ${payload_event_id}). Open the correct event scanner.`
+      });
+    }
+
+    const ticket = await Ticket.findOne({ ticketId })
+      .populate('participant', 'firstName lastName email')
+      .populate('event', 'name');
     if (!ticket) {
       await AttendanceLog.create({
         event: event._id,
         scannedBy: req.user._id,
         status: 'INVALID',
         payload: String(qrPayload),
-        note: 'Ticket not found for event'
+        note: 'Ticket id not found'
       });
-      return res.status(404).json({ message: 'Ticket not found for this event' });
+      return res.status(404).json({ message: 'Ticket not found' });
+    }
+
+    if (String(ticket.event?._id || ticket.event) !== String(event._id)) {
+      await AttendanceLog.create({
+        event: event._id,
+        scannedBy: req.user._id,
+        status: 'INVALID',
+        payload: String(qrPayload),
+        note: `Ticket belongs to different event: ${ticket.event?._id || ticket.event}`
+      });
+      return res.status(400).json({
+        message: `Ticket belongs to event "${ticket.event?.name || 'Unknown'}", not "${event.name}".`
+      });
     }
 
     const alreadyScanned = await AttendanceLog.findOne({

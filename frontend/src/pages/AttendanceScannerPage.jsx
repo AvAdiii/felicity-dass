@@ -162,6 +162,7 @@ export default function AttendanceScannerPage() {
     <div className="stack">
       <section className="card">
         <h2>QR Scanner & Attendance Tracking</h2>
+        {dashboard?.event?.name ? <p>Current Event: {dashboard.event.name}</p> : null}
         <p>Scan via raw payload, file upload, or camera capture.</p>
 
         <label>
