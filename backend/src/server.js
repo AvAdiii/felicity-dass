@@ -99,14 +99,17 @@ const mongo_uri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/felicity';
   try {
     await connectDB(mongo_uri);
     await ensureAdmin();
-    if (mailIsConfigured()) {
-      await verifyEmailTransport();
-    } else {
-      console.log('[mail] SMTP env is missing, emails will be logged in dev mode.');
-    }
 
     server.listen(port, () => {
       console.log(`Backend listening on port ${port}`);
+
+      if (mailIsConfigured()) {
+        verifyEmailTransport().catch((mailErr) => {
+          console.error('[mail] SMTP startup check failed:', mailErr.message);
+        });
+      } else {
+        console.log('[mail] SMTP env is missing, emails will be logged in dev mode.');
+      }
     });
   } catch (err) {
     console.error('Failed to start server', err);
