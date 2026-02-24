@@ -85,7 +85,7 @@ Additional attributes:
 - `PasswordResetRequest` (organizer-admin reset workflow tracking)
 - `ParticipantPasswordResetToken` (single-use, expiring email reset tokens)
 
-## Part 1 Rubric Coverage
+## Part 1
 
 ### 4. Authentication & Security
 - Participant signup with IIIT domain validation for `participantType=IIIT`
@@ -150,9 +150,9 @@ Additional attributes:
 - deployment document included (`deployment.txt`)
 - env-based MongoDB URI expected for Atlas in production
 
-## Part 2: Advanced Features (exact 30 marks selection)
+## Part 2
 
-### Tier A (Choose 2)
+### Tier A
 1. **Merchandise Payment Approval Workflow** (implemented)
 - participant places merchandise order (subject to stock and per-item limits)
 - participant uploads payment proof image; order moves to `PENDING_APPROVAL`
@@ -168,7 +168,7 @@ Additional attributes:
 - attendance CSV export
 - manual override with audit note
 
-### Tier B (Choose 2)
+### Tier B
 1. **Real-Time Discussion Forum** (implemented)
 - event-specific discussion on event detail page
 - registered participants can post
@@ -184,7 +184,7 @@ Additional attributes:
 - admin approve/reject with comment
 - on approval, new password auto-generated and returned to admin for sharing
 
-### Tier C (Choose 1)
+### Tier C
 1. **Add to Calendar Integration** (implemented)
 - downloadable `.ics` for ticketed events
 - Google Calendar link

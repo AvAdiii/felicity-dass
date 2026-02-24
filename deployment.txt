@@ -1,2 +1,2 @@
-Frontend URL: https://your-frontend-url.vercel.app
-Backend URL: https://your-backend-url.onrender.com
+Frontend URL:
+Backend URL:
